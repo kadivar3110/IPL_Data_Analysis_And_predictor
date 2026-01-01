@@ -149,7 +149,7 @@ if option == "Statistical Analysis":
 
     col1, col2 = st.columns(2)
     col1.metric("Total Runs by Batter", 355373)
-    col2.metric("Total Wickets by Bowler", 12650)
+    col2.metric("Total Wickets by Bowler", 10526)
 
     mean_by_season = df_ipl.groupby('season')['targeted_total_run'].mean().reset_index() # Convert Series to DataFrame
     mean_by_season = mean_by_season.rename(columns={'targeted_total_run':'Avrage Run'}) # Now 'columns' argument is valid
