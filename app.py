@@ -8,7 +8,18 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 # Get the directory of the current script
 script_dir = os.path.dirname(os.path.abspath(__file__))
-csv_path = os.path.join(script_dir, 'IPL.csv')
+
+# Debugging: Print file locations to help diagnose deployment issues
+st.write(f"Script directory: {script_dir}")
+st.write(f"Files in directory: {os.listdir(script_dir)}")
+
+# Use the zipped file to save space and avoid GitHub limits
+csv_path = os.path.join(script_dir, 'IPL.zip')
+
+if not os.path.exists(csv_path):
+    st.error(f"Error: IPL.zip not found at {csv_path}. Please ensure you uploaded it to GitHub.")
+    st.stop()
+
 df = pd.read_csv(csv_path)
 import pickle
 
@@ -111,6 +122,11 @@ def return_by_selection(df: pd.DataFrame, team: str, seas) -> pd.DataFrame:
     return df_team_season[(df_team_season['match_won_by'] == team) & (df_team_season['season'] == seas)]
     
 pkl_path = os.path.join(script_dir, 'preprocess.pkl')
+
+if not os.path.exists(pkl_path):
+    st.error(f"Error: preprocess.pkl not found at {pkl_path}. Please ensure you uploaded it to GitHub.")
+    st.stop()
+
 with open(pkl_path, 'rb') as f:
     preprocess_function = pickle.load(f)
 
@@ -149,7 +165,7 @@ if option == "Statistical Analysis":
 
     col1, col2 = st.columns(2)
     col1.metric("Total Runs by Batter", 355373)
-    col2.metric("Total Wickets by Bowler", 10526)
+    col2.metric("Total Wickets by Bowler", 12650)
 
     mean_by_season = df_ipl.groupby('season')['targeted_total_run'].mean().reset_index() # Convert Series to DataFrame
     mean_by_season = mean_by_season.rename(columns={'targeted_total_run':'Avrage Run'}) # Now 'columns' argument is valid
