@@ -9,10 +9,6 @@ from plotly.subplots import make_subplots
 # Get the directory of the current script
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Debugging: Print file locations to help diagnose deployment issues
-st.write(f"Script directory: {script_dir}")
-st.write(f"Files in directory: {os.listdir(script_dir)}")
-
 # Use the zipped file to save space and avoid GitHub limits
 csv_path = os.path.join(script_dir, 'IPL.zip')
 
