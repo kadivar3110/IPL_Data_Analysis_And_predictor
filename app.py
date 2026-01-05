@@ -3,9 +3,12 @@ import pandas as pd
 import os
 import plotly.express as px
 import numpy as np
-
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import OneHotEncoder
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
 # Get the directory of the current script
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -132,9 +135,15 @@ df_ipl, Team_names = rearenge_name(df_ipl)
 Team_names.insert(0, 'Overall')
 seasons.insert(0, 'Overall')
 
-st.sidebar.title("IPL Analysis")
-option = st.sidebar.radio("Select Option", ["OverAll Analysis", "Statistical Analysis", 'Player Analysis', "City Analysis"])
+st.sidebar.title("IPL Analysis & Prediction System")
 
+# Main Section Selection
+section = st.sidebar.radio("Select Section", ["Analysis", "Prediction"])
+
+if section == "Analysis":
+    option = st.sidebar.radio("Select Analysis Type", ["OverAll Analysis", "Statistical Analysis", 'Player Analysis', "City Analysis"])
+elif section == "Prediction":
+    option = st.sidebar.radio("Select Prediction Type", ['Predict Match Winner', 'Player Performance Prediction'])
 
 if option == "OverAll Analysis":
     selected_season = st.sidebar.selectbox("Select Season", seasons)
@@ -186,8 +195,6 @@ if option == "Statistical Analysis":
     st.plotly_chart(fig)
 
 
-
-# Re-create team_stats_df
     team_stats = {
         'Team': [],
         'Matches Played': [],
@@ -195,7 +202,6 @@ if option == "Statistical Analysis":
         'Win Ratio': []
     }
 
-    # Get all unique team names from batting and bowling teams
     all_teams = pd.concat([df_ipl['batting_team'], df_ipl['bowling_team']]).unique()
 
     for team in all_teams:
@@ -215,10 +221,8 @@ if option == "Statistical Analysis":
     team_stats_df = pd.DataFrame(team_stats)
     team_stats_df = team_stats_df.sort_values(by='Win Ratio', ascending=False)
 
-    # Create figure with secondary y-axis
     fig = make_subplots(rows=1, cols=1, specs=[[{'secondary_y': True}]])
 
-    # Add traces for Matches Played and Matches Won on primary y-axis
     fig.add_trace(
         go.Bar(name='Matches Played', x=team_stats_df['Team'], y=team_stats_df['Matches Played'], marker_color='skyblue'),
         secondary_y=False,
@@ -227,20 +231,16 @@ if option == "Statistical Analysis":
         go.Bar(name='Matches Won', x=team_stats_df['Team'], y=team_stats_df['Matches Won'], marker_color='lightgreen'),
         secondary_y=False,
     )
-
-    # Add trace for Win Ratio on secondary y-axis
     fig.add_trace(
         go.Scatter(name='Win Ratio', x=team_stats_df['Team'], y=team_stats_df['Win Ratio'], mode='lines+markers', marker_color='red'),
         secondary_y=True,
     )
-    # Add figure title and labels
     fig.update_layout(
         title_text='Team Performance: Matches Played, Won, and Win Ratio',
         xaxis_title='Team',
-        barmode='group' # Group the bars
+        barmode='group' 
     )
 
-    # Set y-axes titles
     fig.update_yaxes(title_text='Number of Matches', secondary_y=False)
     fig.update_yaxes(title_text='Win Ratio', secondary_y=True, range=[0, 1])
 
@@ -458,3 +458,364 @@ if option == "City Analysis":
         fig = px.pie(values=values, names=labels, title=f'Total Matches Host by {city_name}')
         st.plotly_chart(fig)
     city_ana(selected_city)
+
+if option == "Predict Match Winner":
+    st.title("Predict Match Winner")
+    required_cols = ['match_id', 'batting_team', 'bowling_team', 'toss_winner', 'toss_decision', 'match_won_by', 'runs_total', 'innings']
+
+    match_df = df.groupby(['match_id', 'batting_team',
+                       'bowling_team', 'toss_winner', 'toss_decision',
+                       'match_won_by', 'innings'])['runs_total'].sum().reset_index()
+        
+    match_df['batting_team'] = match_df['batting_team'].replace({
+    'Delhi Daredevils': 'Delhi Capitals',
+    'Kings XI Punjab': 'Punjab Kings',
+    'Royal Challengers Bangalore': 'Royal Challengers Bengaluru',
+    'Rising Pune Supergiants': 'Rising Pune Supergiant'
+    })
+
+    match_df['match_won_by'] = match_df['match_won_by'].replace({
+    'Delhi Daredevils': 'Delhi Capitals',
+    'Kings XI Punjab': 'Punjab Kings',
+    'Royal Challengers Bangalore': 'Royal Challengers Bengaluru',
+    'Rising Pune Supergiants': 'Rising Pune Supergiant'
+    })
+
+    match_df['toss_winner'] = match_df['toss_winner'].replace({
+    'Delhi Daredevils': 'Delhi Capitals',
+    'Kings XI Punjab': 'Punjab Kings',
+    'Royal Challengers Bangalore': 'Royal Challengers Bengaluru',
+    'Rising Pune Supergiants': 'Rising Pune Supergiant'
+    })
+
+    match_df['bowling_team'] = match_df['bowling_team'].replace({
+    'Delhi Daredevils': 'Delhi Capitals',
+    'Kings XI Punjab': 'Punjab Kings',
+    'Royal Challengers Bangalore': 'Royal Challengers Bengaluru',
+    'Rising Pune Supergiants': 'Rising Pune Supergiant'
+    })
+
+    teams_to_remove = ['Deccan Chargers', 'Gujarat Lions', 'Kochi Tuskers Kerala']
+
+    match_df = match_df[~match_df['batting_team'].isin(teams_to_remove)]
+    match_df = match_df[~match_df['bowling_team'].isin(teams_to_remove)]
+    match_df = match_df[~match_df['toss_winner'].isin(teams_to_remove)]
+    match_df = match_df[~match_df['match_won_by'].isin(teams_to_remove)]
+
+    avg_runs_1 = match_df[match_df['innings'] == 1].groupby('batting_team')['runs_total'].mean().reset_index().rename(columns={'runs_total': 'avg_runs_1st'})
+    avg_runs_2 = match_df[match_df['innings'] == 2].groupby('batting_team')['runs_total'].mean().reset_index().rename(columns={'runs_total': 'avg_runs_2nd'})
+
+    match_df = pd.merge(match_df, avg_runs_1, on='batting_team', how='left')
+    match_df = pd.merge(match_df, avg_runs_2, on='batting_team', how='left')
+
+    match_df['team_in_avg_runs'] = np.where(match_df['innings'] == 1, match_df['avg_runs_1st'], match_df['avg_runs_2nd'])
+    match_df['team_in_avg_runs'] = match_df['team_in_avg_runs'].fillna(match_df['runs_total'].mean())
+    
+
+    match_df['is_winner'] = (match_df['batting_team'] == match_df['match_won_by']).astype(int)
+    h2h = match_df.groupby(['batting_team', 'bowling_team'])['is_winner'].sum().reset_index().rename(columns={'is_winner': 'winner_h2h_wins'})
+
+    match_df = pd.merge(match_df, h2h, on=['batting_team', 'bowling_team'], how='left')
+
+    X = match_df[['toss_winner', 'toss_decision', 'batting_team', 'bowling_team', 'team_in_avg_runs', 'winner_h2h_wins']]
+    y = match_df['is_winner']
+
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    st.subheader("Predict Match Winner")
+        
+    col1, col2 = st.columns(2)
+    
+        # Filter out 'Overall' from Team_names if present, or use unique teams from df
+    teams_list = sorted(match_df['batting_team'].unique().tolist())
+        
+    with col1:
+        team1 = st.selectbox("Team 1", teams_list)
+        team2 = st.selectbox("Team 2", [t for t in teams_list if t != team1])
+            
+    with col2:
+        toss_winner = st.selectbox("Toss Winner", [team1, team2])
+        toss_decision = st.selectbox("Toss Decision", df['toss_decision'].unique())
+    
+    if toss_decision == 'bat':
+        batting_team = toss_winner
+        bowling_team = team2 if toss_winner == team1 else team1
+    else:
+        bowling_team = toss_winner
+        batting_team = team2 if toss_winner == team1 else team1
+   
+    avg_runs_val = avg_runs_1[avg_runs_1['batting_team'] == batting_team]['avg_runs_1st'].values
+    input_avg_runs = avg_runs_val[0] if len(avg_runs_val) > 0 else 160.0 
+        
+    h2h_val = h2h[(h2h['batting_team'] == batting_team) & (h2h['bowling_team'] == bowling_team)]['winner_h2h_wins'].values
+    input_h2h = h2h_val[0] if len(h2h_val) > 0 else 0
+
+    st.info(f"**Match Setup:** {batting_team} bats first vs {bowling_team}")
+    st.info(f"**Stats:** {batting_team} 1st Inn Avg: {input_avg_runs:.1f} | H2H Wins vs {bowling_team}: {input_h2h}")
+        
+
+    input_data = pd.DataFrame({
+        'toss_winner': [toss_winner],
+        'toss_decision': [toss_decision],
+        'batting_team': [batting_team],
+        'bowling_team': [bowling_team],
+        'team_in_avg_runs': [input_avg_runs],
+        'winner_h2h_wins': [input_h2h]
+    })
+
+    One = OneHotEncoder(sparse_output = False)
+    X_hot = One.fit_transform(X)
+    input_hot = One.transform(input_data)
+    rnd = RandomForestClassifier(n_estimators=50, random_state=42, max_depth=5, min_samples_split=10)
+    random = rnd.fit(X_hot, y)
+    proba = random.predict_proba(input_hot)[0][1]
+
+    if st.button("Predict Winner"):
+        prediction = random.predict(input_hot)[0]
+        if prediction == 1:
+            probability = proba
+            st.success(f"**Predicted Winner:**---> {batting_team}")
+        else:
+            probability = 1 -  proba
+            st.success(f"**Predicted Winner:**---> {bowling_team}")
+
+        st.info(f"**Winning Probability:** {probability*100:.2f}%")
+
+elif option == "Player Performance Prediction":
+    st.title("Player Performance Prediction")
+    st.sidebar.subheader('select bowler or batter for performance prediction')
+    player_type = st.sidebar.selectbox("Select Player Type", ['Batter', 'Bowler'])
+    df_dami = df[['match_id', 'date', 'batter', 'batter_runs', 'season']]
+    want_season = ['2021', '2022','2023', '2024', '2025']
+
+    df_dami['season'] = df_dami['season'].astype(str)
+
+    df_dami['season'] = df_dami['season'].replace({
+        '2007/08': '2008',
+        '2009/10': '2010',
+        '2020/21': '2020'
+    })
+
+    df_dami = df_dami[df_dami['season'].isin(want_season)]
+    
+
+    dami_df = df_dami[['match_id', 'date', 'batter', 'batter_runs']]
+    dami_df = dami_df.groupby(['date', 'batter', 'match_id'])['batter_runs'].max().reset_index()  
+    uni_batter = dami_df['batter'].unique()
+    #if player_type == 'Batter':
+        #st.subheader('Batter Performance Prediction')
+        #selected_batter = st.selectbox("Select Batter", uni_batter)
+    # selected_batter = st.selectbox("Select Batter", uni_batter)
+    def batter_pred(batter):
+        df_dami = df[['match_id', 'date', 'batter', 'batter_runs', 'season']]
+        want_season = ['2021', '2022','2023', '2024', '2025']
+
+        df_dami['season'] = df_dami['season'].astype(str)
+
+        df_dami['season'] = df_dami['season'].replace({
+            '2007/08': '2008',
+            '2009/10': '2010',
+            '2020/21': '2020'
+        })
+
+        df_dami = df_dami[df_dami['season'].isin(want_season)]
+
+        dami_df = df_dami[['match_id', 'date', 'batter', 'batter_runs']]
+        dami_df = dami_df.groupby(['date', 'batter', 'match_id'])['batter_runs'].max().reset_index()  
+        uni_batter = dami_df['batter'].unique()
+        ## change for seasonality
+
+        season_df = df[['match_id', 'season']]
+        season_df = season_df.drop_duplicates(subset=['match_id'])
+        dami_df = pd.merge(dami_df, season_df, on='match_id', how='left')
+
+        ## end change for seasonality
+        dami_batter = dami_df[dami_df['batter'] == batter]
+        dami_batter['date'] = pd.to_datetime(dami_batter['date'])
+        dami_batter.set_index('date', inplace=True)
+
+        dami_batter = dami_batter.sort_values('date')
+        dami_batter['match_seq'] = range(1, len(dami_batter) + 1)
+
+        dami_batter['last_5_match_avg_run'] = dami_batter['batter_runs'].rolling(window=5).mean()
+
+        dami_batter = dami_batter.set_index('match_seq')
+        dami_batter = dami_batter.drop(columns=['batter', 'match_id'])
+
+        from statsmodels.tsa.arima.model import ARIMA
+        ari = ARIMA(dami_batter['last_5_match_avg_run'], order=(5, 1, 5))
+
+        ari_fit = ari.fit()
+        pred = ari_fit.predict(start=1, end =len(dami_batter)+15)
+        pred = pred.to_frame(name='predicted_5_matches_avg_run')
+        pred = pred.merge(dami_batter['last_5_match_avg_run'], left_index=True, right_index=True, how='left')
+
+        ## new prediction for seasonality
+        season_data = dami_batter.groupby('season')['batter_runs'].sum().reset_index()
+        season_data['season'] = season_data['season'].astype(int)
+        season_data = season_data.sort_values('season')
+
+        if len(season_data) < 3:
+            st.warning(f"Not enough season data for {selected_batter} to predict next season total (Need at least 3 seasons).")
+        else:
+            model = ARIMA(season_data['batter_runs'], order=(1, 1, 0)) 
+            model_fit = model.fit()
+                        
+            predi = model_fit.forecast(steps=1)
+            predi_val = predi.iloc[0]
+            predi_year = season_data['season'].max() + 1
+                        
+            st.metric(label=f"Predicted Total Runs for Season {predi_year}", value=f"{int(predi_val)}")
+
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=season_data['season'],
+                y=season_data['batter_runs'],
+                name='Actual Season Runs',
+                marker_color='#3498db'
+            ))
+                        
+            fig.add_trace(go.Bar(
+                x=[predi_year],
+                y=[predi_val],
+                name='Predicted Next Season',
+                marker_color='#e74c3c'
+            ))
+                        
+            fig.update_layout(
+                title=f"Season-wise Total Runs Prediction for {selected_batter}",
+                xaxis_title="Season",
+                yaxis_title="Total Runs",
+                template="plotly_white"
+             )
+            st.plotly_chart(fig, use_container_width=True)
+
+
+        pred[['predicted_5_matches_avg_run', 'last_5_match_avg_run']].plot()
+        st.line_chart(pred[['predicted_5_matches_avg_run', 'last_5_match_avg_run']])
+    
+    df_dami = df[['match_id', 'date', 'bowler', 'bowler_wicket', 'season']]
+    want_season = ['2021', '2022','2023', '2024', '2025']
+
+    df_dami['season'] = df_dami['season'].astype(str)
+
+    df_dami['season'] = df_dami['season'].replace({
+        '2007/08': '2008',
+        '2009/10': '2010',
+        '2020/21': '2020'
+    })
+
+    df_dami = df_dami[df_dami['season'].isin(want_season)]
+
+    dami_df = df_dami[['match_id', 'date', 'bowler', 'bowler_wicket']]
+    dami_df = dami_df.groupby(['date', 'bowler', 'match_id'])['bowler_wicket'].sum().reset_index()  
+  
+    uni_bowler = dami_df['bowler'].unique()
+
+    def bowler_pred(bowler):
+        df_dami = df[['match_id', 'date', 'bowler', 'bowler_wicket', 'season']]
+        want_season = ['2021', '2022','2023', '2024', '2025']
+
+        df_dami['season'] = df_dami['season'].astype(str)
+
+        df_dami['season'] = df_dami['season'].replace({
+            '2007/08': '2008',
+            '2009/10': '2010',
+            '2020/21': '2020'
+        })
+
+        df_dami = df_dami[df_dami['season'].isin(want_season)]
+
+        dami_df = df_dami[['match_id', 'date', 'bowler', 'bowler_wicket']]
+        dami_df = dami_df.groupby(['date', 'bowler', 'match_id'])['bowler_wicket'].sum().reset_index()  
+  
+        uni_bowler = dami_df['bowler'].unique()
+
+        ## change for seasonality
+        season_df = df[['match_id', 'season']]
+        season_df = season_df.drop_duplicates(subset=['match_id'])
+        dami_df = pd.merge(dami_df, season_df, on='match_id', how='left')
+        ## end change for seasonality
+        
+        dami_batter = dami_df[dami_df['bowler'] == bowler]
+        dami_batter['date'] = pd.to_datetime(dami_batter['date'])
+        dami_batter.set_index('date', inplace=True)
+
+        dami_batter = dami_batter.sort_values('date')
+        dami_batter['match_seq'] = range(1, len(dami_batter) + 1)
+
+        dami_batter['actual_avg_wickets_of_7_match'] = dami_batter['bowler_wicket'].rolling(window=7).mean()
+
+        dami_batter = dami_batter.set_index('match_seq')
+        dami_batter = dami_batter.drop(columns=['bowler', 'match_id',])
+
+        from statsmodels.tsa.arima.model import ARIMA
+        ari = ARIMA(dami_batter['actual_avg_wickets_of_7_match'], order=(5, 1, 5))
+
+        ari_fit = ari.fit()
+ 
+        pred = ari_fit.predict(start=1, end=len(dami_batter)+15)
+        pred = pred.to_frame(name='predicted_7_match_avg_wickets')
+        pred = pred.merge(dami_batter['actual_avg_wickets_of_7_match'], left_index=True, right_index=True, how='left')
+
+                ## new prediction for seasonality
+        season_data = dami_batter.groupby('season')['bowler_wicket'].sum().reset_index()
+        season_data['season'] = season_data['season'].astype(int)
+        season_data = season_data.sort_values('season')
+
+        if len(season_data) < 3:
+            st.warning(f"Not enough season data for {selected_bowler} to predict next season total (Need at least 3 seasons).")
+        else:
+            model = ARIMA(season_data['bowler_wicket'], order=(1, 1, 0)) 
+            model_fit = model.fit()
+                        
+            predi = model_fit.forecast(steps=1)
+            predi_val = predi.iloc[0]
+            predi_year = season_data['season'].max() + 1
+                        
+            st.metric(label=f"Predicted Total Wickets for Season {predi_year}", value=f"{int(predi_val)}")
+
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=season_data['season'],
+                y=season_data['bowler_wicket'],
+                name='Actual Season Wickets',
+                marker_color='#3498db'
+            ))
+                        
+            fig.add_trace(go.Bar(
+                x=[predi_year],
+                y=[predi_val],
+                name='Predicted Next Season',
+                marker_color='#e74c3c'
+            ))
+                        
+            fig.update_layout(
+                title=f"Season-wise Total Wickets Prediction for {selected_bowler}",
+                xaxis_title="Season",
+                yaxis_title="Total Wickets",
+                template="plotly_white"
+             )
+            st.plotly_chart(fig, use_container_width=True)
+
+        pred[['predicted_7_match_avg_wickets', 'actual_avg_wickets_of_7_match']].plot()
+        st.line_chart(pred[['predicted_7_match_avg_wickets', 'actual_avg_wickets_of_7_match']])
+
+    if player_type == 'Batter':
+        st.subheader('Batter Performance Prediction')
+        selected_batter = st.selectbox("Select Batter", uni_batter)
+        batter_pred(selected_batter)
+    else:
+        st.subheader('Bowler Performance Prediction')
+        selected_bowler = st.selectbox("Select Bowler", uni_bowler)
+        bowler_pred(selected_bowler)
+
+
+
+
+
+
+
+
+
+
