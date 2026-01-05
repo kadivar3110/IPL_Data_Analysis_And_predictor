@@ -690,9 +690,9 @@ elif option == "Player Performance Prediction":
              )
             st.plotly_chart(fig, use_container_width=True)
 
-
-        pred[['predicted_5_matches_avg_run', 'last_5_match_avg_run']].plot()
-        st.write('## Prediction vs Actual Average Runs over 5 Matches')
+        st.markdown('---')
+        st.subheader('📈 Match-by-Match Performance Trend')
+        st.write('### Prediction vs Actual Average Runs over 5 Matches')
         st.line_chart(pred[['predicted_5_matches_avg_run', 'last_5_match_avg_run']])
     
     df_dami = df[['match_id', 'date', 'bowler', 'bowler_wicket', 'season']]
@@ -799,8 +799,9 @@ elif option == "Player Performance Prediction":
              )
             st.plotly_chart(fig, use_container_width=True)
 
-        pred[['predicted_7_match_avg_wickets', 'actual_avg_wickets_of_7_match']].plot()
-        st.write('## Prediction vs Actual Average Wickets over 7 Matches')
+        st.markdown('---')
+        st.subheader('📈 Match-by-Match Performance Trend')
+        st.write('### Prediction vs Actual Average Wickets over 7 Matches')
         st.line_chart(pred[['predicted_7_match_avg_wickets', 'actual_avg_wickets_of_7_match']])
 
     if player_type == 'Batter':
