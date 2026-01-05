@@ -690,10 +690,9 @@ elif option == "Player Performance Prediction":
              )
             st.plotly_chart(fig, use_container_width=True)
 
-        st.markdown('---')
-        st.subheader('📈 Match-by-Match Performance Trend')
+
         st.write('### Prediction vs Actual Average Runs over 5 Matches')
-        st.line_chart(pred[['predicted_5_matches_avg_run', 'last_5_match_avg_run']])
+        st.line_chart(pred[['predicted_5_matches_avg_run', 'last_5_match_avg_run']], )
     
     df_dami = df[['match_id', 'date', 'bowler', 'bowler_wicket', 'season']]
     want_season = ['2021', '2022','2023', '2024', '2025']
